@@ -1,0 +1,71 @@
+//1. Display TreatmentId, and TreatmentName for every treatment which id is ‘TM001’ or ‘TM002’//
+SELECT TreatmentId,TreatmentName from MsTreatment WHERE TreatmentId IN('TM001','TM002');
+
+//2. Display TreatmentName, and Price for every treatment which type is not ‘Hair Treatment’ and ‘Message / Spa’//
+SELECT TreatmentName,Price FROM MsTreatment t,MsTreatmentType y
+WHERE TreatmentTypeName IN(SELECT TreatmentTypeName FROM MsTreatmentType WHERE TreatmentTypeName NOT IN('Hair Treatment','Massage/spa'));
+
+//3. Display CustomerName, CustomerPhone, and CustomerAddress for every customer whose name is more than 8 charactes and did transaction on Friday//
+SELECT CustomerName,CustomerPhone,CustomerAddress FROM MsCustomer c,HeaderSalonServices h
+WHERE c.CustomerId=h.CustomerId
+AND LEN(c.CustomerName)>8
+AND TransactionDate IN(SELECT TransactionDate FROM HeaderSalonServices WHERE DATENAME(WEEKDAY,TransactionDate)='Friday');
+
+//4. Display TreatmentTypeName, TreatmentName, and Price for every treatment that taken by customer whose name contains ‘Putra’ and happened on day 22th//
+SELECT TreatmentTypeName,TreatmentName,Price FROM MsTreatmentType y,Mstreatment t,HeaderSalonServices h,DetailSalonServices d,MsCustomer c
+WHERE t.TreatmentTypeId=y.TreatmentTypeId
+AND t.TreatmentId=d.TreatmentId
+AND d.TransactionId=h.TransactionId
+AND c.CustomerId=h.CustomerId
+AND CustomerName IN(SELECT CustomerName FROM MsCustomer WHERE CustomerName LIKE'%Putra%')
+AND DAY(TransactionDate)LIKE '27';
+
+//5. Display StaffName, CustomerName, and TransactionDate (obtained from TransactionDate in ‘Mon dd,yyyy’ format) for every treatment which the last character of treatmentid is an even 
+number//
+SELECT StaffName,CustomerName,CONVERT(VARCHAR,TransactionDate,107)[TransactionDate]
+FROM MsStaff s,MsCustomer c,HeaderSalonServices h,MsTreatment t,DetailSalonServices d
+WHERE s.StaffId=h.StaffId
+AND c.CustomerId=h.CustomerId
+AND t.TreatmentId=d.TreatmentId
+AND d.TransactionId=h.TransactionId
+AND EXISTS(SELECT TransactionId FROM DetailSalonServices WHERE d.TransactionId=h.TransactionId AND RIGHT(t.TreatmentId,1) % 2=0);
+
+
+//6. Display CustomerName, CustomerPhone, and CustomerAddress for every customer that was served by staff whose name’s length is an odd number//
+SELECT CustomerName,CustomerPhone,CustomerAddress From MsCustomer c,HeaderSalonServices h,MsStaff s
+WHERE c.CustomerId=h.CustomerId
+AND h.StaffId=s.StaffId
+AND EXISTS(SELECT StaffId FROM HeaderSalonServices WHERE h.StaffId=s.StaffId AND c.CustomerId=h.CustomerId AND LEN(StaffName)%2!=0);
+
+//7. Display ID (obtained form last 3 characters of StaffID), and Name (obtained by taking character after the first space until character before second space in StaffName) for every staff 
+whose name contains at least 3 words and hasn’t served male customer//
+SELECT RIGHT(s.StaffId,3)[ID],SUBSTRING(StaffName,CHARINDEX(' ',StaffName)+1,CHARINDEX(' ',StaffName,CHARINDEX(' ',StaffName))+1)[Name]
+FROM MsStaff s,HeaderSalonServices h,MsCustomer c
+WHERE S.StaffId=h.StaffId
+AND c.CustomerId=h.CustomerId
+AND EXISTS(SELECT CustomerId FROM HeaderSalonServices WHERE h.CustomerId=c.CustomerId 
+AND CustomerGender NOT LIKE'Male' AND LEN(StaffName)-LEN(REPLACE(StaffName,' ',''))+1>2);
+
+
+//8. Display TreatmentTypeName, TreatmentName, and Price for every treatment which price is higher than average of all treatment’s price//
+SELECT TreatmentTypeName,TreatmentName,Price FROM MsTreatment t JOIN MsTreatmentType y
+ON t.TreatmentTypeId=y.TreatmentTypeId,
+(SELECT AVG(Price)[rata] FROM MsTreatment)p
+WHERE Price > p.rata;
+
+//9. Display StaffName, StaffPosition, and StaffSalary for every staff with highest salary or lowest salary//
+SELECT StaffName,StaffPosition,StaffSalary FROM MsStaff,
+(SELECT Max(StaffSalary)[MAX],Min(StaffSalary)[MIN]FROM MsStaff) M
+WHERE StaffSalary IN ( M.MAX , M.MIN );
+
+//10. Display CustomerName,CustomerPhone,CustomerAddress, and Count Treatment (obtained from the total number of treatment) for every transaction which has the highest total number of
+treatment//
+SELECT DISTINCT CustomerName,CustomerPhone,CustomerAddress,COUNT(t.TreatmentId)[Count Treatment]FROM MsCustomer c 
+JOIN HeaderSalonServices h ON c.CustomerId=h.CustomerId
+JOIN DetailSalonServices d ON h.TransactionId=d.TransactionId
+JOIN MsTreatment t ON d.TreatmentId=t.TreatmentId,
+  (SELECT MAX([Count Treatment])[maxi]FROM
+ ( SELECT t.TreatmentId,COUNT(t.TreatmentId)[Count Treatment]FROM
+ MsTreatment t,DetailSalonServices d WHERE t.TreatmentId=d.TreatmentId GROUP BY t.TreatmentId)b
+ )a
+GROUP BY CustomerName,CustomerAddress,CustomerPhone,a.maxi HAVING COUNT(t.TreatmentId)>a.maxi ;
