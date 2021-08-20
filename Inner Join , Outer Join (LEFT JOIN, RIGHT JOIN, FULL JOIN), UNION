@@ -1,0 +1,79 @@
+//1. Display TreatmentTypeName, TreatmentName, and Price for every treatment which name contains ‘hair’ or start with ‘nail’ word and has price below 100000//
+SELECT MsTreatmentType.TreatmentTypeName,MsTreatment.TreatmentName,MsTreatment.Price FROM MsTreatmentType JOIN MsTreatment 
+ON MsTreatmentType.TreatmentTypeId=MsTreatment.TreatmentTypeId
+WHERE (MsTreatmentType.TreatmentTypeName LIKE 'Hair Treatment'OR MsTreatmentType.TreatmentTypeName LIKE 'NailTreatment')
+AND Price<100000;
+
+//2. Display StaffName and StaffEmail (obtained from the first character of staff’s name in lowercase format and followed with last word of staff’s name and ‘@oosalon.com’ word) for 
+every staff who handle transaction on Thursday.The duplicated data must be displayed only once//
+SELECT DISTINCT StaffName,LOWER(LEFT(StaffName,1))
++REVERSE(LEFT(REVERSE(StaffName), CHARINDEX (' ', REVERSE (StaffName) )-1 )) + '@oosalon.com'[StaffEmail]FROM MsStaff s 
+JOIN HeaderSalonServices h ON s.StaffId=h.StaffId
+WHERE DATENAME(WEEKDAY,TransactionDate) LIKE'Thursday';
+
+
+//3. Display New Transaction ID (obtained by replacing ‘TR’ in TransactionID with ‘Trans’), Old Transaction ID (obtained from TransactionId), TransactionDate, StaffName, and 
+CustomerName for every transaction which happened 2 days before 24th December 2012//
+SELECT REPLACE(TransactionId,'TR','Trans')[New TransactionId],TransactionId[Old TransactionId],TransactionDate,StaffName,CustomerName 
+FROM HeaderSalonServices JOIN MsCustomer ON HeaderSalonServices.CustomerId=MsCustomer.CustomerId
+JOIN MsStaff ON HeaderSalonServices.StaffId=MsStaff.StaffId AND DATEDIFF(DAY,TransactionDate,'2012/12/24')=2;
+
+//4. Display New Transaction Date (obtained by adding 5 days to TransactionDate), Old Transaction Date (obtained from TransactionDate), and CustomerName for every transaction which didn’t happen on day 20th//
+SELECT DATEADD(DAY,5,TransactionDate)[New TransactionDate],TransactionDate[Old TransactionDate],CustomerName 
+FROM HeaderSalonServices h JOIN MsCustomer c ON h.CustomerId=c.CustomerId
+WHERE DATEPART(DAY,TransactionDate)!=20;
+
+//5. Display Day (obtained from the day transaction happened), CustomerName, and TreatmentName for every Customer who was handled by female staff that has position name begin with ‘TOP’ word. 
+Then order the data based on CustomerName in ascending format//
+SELECT DATENAME(WEEKDAY,TransactionDate)[Day],CustomerName,TreatmentName FROM HeaderSalonServices h
+JOIN DetailSalonServices d ON h.TransactionId=d.TransactionId
+JOIN MsCustomer c ON h.CustomerId=c.CustomerId
+JOIN MsTreatment t ON d.TreatmentId=t.TreatmentId
+JOIN MsStaff s ON h.StaffId=s.StaffId
+WHERE s.StaffId IN (SELECT StaffId FROM MsStaff 
+WHERE StaffGender='Female' AND StaffPosition LIKE'Top%') ORDER BY CustomerName ASC;
+
+//6. Display the first data of CustomerId, CustomerName, TransactionId, Total Treatment(obtained from the total number of treatment).Then sort the data based on Total Treatment in descending format//
+SELECT TOP 1 c.CustomerId,CustomerName,h.TransactionId,COUNT(t.TreatmentId)[Total Treatment]FROM HeaderSalonServices h
+JOIN MsCustomer c ON h.CustomerId=c.CustomerId 
+JOIN DetailSalonServices d ON h.TransactionId=d.TransactionId
+JOIN MsTreatment t ON d.TreatmentId=t.TreatmentId
+GROUP BY c.CustomerId,CustomerName,h.TransactionId ORDER BY [Total Treatment]DESC;
+
+//7. Display CustomerId, TransactionId, CustomerName, and Total Price (obtained from total amount of price)
+for every transaction with total price is higher than the average value of treatment price from every transaction. Then sort the data based on Total Price in descending format//
+SELECT c.CustomerId,h.TransactionId,CustomerName,SUM(Price)[Total Price]FROM HeaderSalonServices h
+JOIN MsCustomer c ON h.CustomerId=c.CustomerId
+JOIN DetailSalonServices d ON h.TransactionId=d.TransactionId
+JOIN MsTreatment t ON d.TreatmentId=t.TreatmentId,
+(SELECT AVG([Total Price])[rata]FROM
+(SELECT TransactionId,SUM(Price)[Total Price]
+FROM DetailSalonServices d,MsTreatment t
+WHERE t.TreatmentId=d.TreatmentId GROUP BY TransactionId)a)b
+GROUP BY c.CustomerId,h.TransactionId,CustomerName,b.rata HAVING SUM(Price)>b.rata
+ORDER BY [Total Price] DESC;
+
+ 
+//8. Display Name (obtained by adding ‘Mr. ’ in front of StaffName), StaffPosition, and StaffSalary for every male staff. The combine it with Name (obtained by adding ‘Ms. ’ in front 
+of StaffName), StaffPosition, and StaffSalary for every female staff. Then sort the data based on Name and StaffPosition in ascending format//
+SELECT CONCAT('Ms. ',StaffName)[StaffName],StaffPosition,StaffSalary FROM MsStaff 
+WHERE StaffName IN(SELECT StaffName FROM MsStaff WHERE StaffGender='Female') UNION 
+SELECT CONCAT('Mr. ',StaffName)[StaffName],StaffPosition,StaffSalary FROM MsStaff 
+WHERE StaffName IN(SELECT StaffName FROM MsStaff WHERE StaffGender='Male') ORDER BY StaffName,StaffPosition ASC;
+
+//9. Display TreatmentName, Price (obtained by adding ‘Rp. ’ in front of Price), and Status as ‘Maximum Price’ for every Treatment which price is the highest treatment’s price. Then 
+combine it with TreatmentName, Price (obtained by adding ‘Rp. ’ in front of Price), and Status as ‘Minimum Price’ for every Treatment which price is the lowest treatment’s price//
+SELECT TreatmentName,'Rp. '+CAST (Price AS VARCHAR)[Price],Status='Maximum Price'FROM MsTreatment,
+(SELECT MAX(Price)[max]FROM MsTreatment) a WHERE Price=a.max UNION
+SELECT TreatmentName,'Rp. '+CAST (Price AS VARCHAR)[Price],Status='Minimum Price'FROM MsTreatment,
+(SELECT MIN(Price)[min]FROM MsTreatment) b
+WHERE Price=b.min;
+
+//10. Display Longest Name of Staff and Customer (obtained from CustomerName), Length of Name (obtained from length of customer’s name), Status as ‘Customer’ for every customer who has the longest name.
+Then combine it with Longest Name of Staff and Customer(obtained from StaffName), Length of Name (obtained from length of staff’s name), Status as ‘Staff’ for every staff who has the longest name//
+SELECT CustomerName[Longest Name of Staff and Customer],LEN(CustomerName)[Lenght of Name],Status='Customer'
+FROM MsCustomer,(SELECT MAX(LEN(CustomerName))[max]FROM MsCustomer) a
+WHERE LEN(CustomerName)=a.max UNION
+SELECT StaffName [Longest Name of Staff and Customer],LEN(StaffName)[Lenght of Name],Status='Staff'
+FROM MsStaff,(SELECT MAX(LEN(StaffName))[max]FROM MsStaff) b
+WHERE LEN(StaffName)=b.max ;
