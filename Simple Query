@@ -1,0 +1,71 @@
+//1. Display all female staff’s data from MsStaff//
+SELECT *FROM MsStaff WHERE StaffGender='Female';
+
+//2. Display StaffName, and StaffSalary(obtained by adding ‘Rp.’ In front of StaffSalary) for every staff whose name contains ‘m’ character and has salary more than or equal to 10000000//
+SELECT StaffName, StaffSalary ,'Rp. '+CAST (StaffSalary As varchar) AS StaffSalary FROM MsStaff
+WHERE StaffName LIKE '%M%' AND StaffSalary>='10000000'; 
+
+//3. Display TreatmentName, and Price for every treatment which type is 'message / spa' or 'beauty care'//
+SELECT TreatmentName,Price FROM MsTreatment T,MsTreatmentType y
+WHERE T.TreatmentTypeId=y.TreatmentTypeId
+AND y.TreatmentTypeName IN('Massage/spa','beautycare');
+
+//4. Display StaffName, StaffPosition, and TransactionDate (obtained from TransactionDate in Mon dd,yyyy format) for every staff who has salary between 7000000 and 10000000//
+SELECT DISTINCT StaffName,StaffPosition, CONVERT(VARCHAR,TransactionDate,107)[TransactionDate]  
+FROM HeaderSalonServices,MsStaff 
+WHERE MsStaff.StaffId=HeaderSalonServices.StaffId
+AND StaffSalary  BETWEEN 7000000 AND 10000000;
+
+
+//5. Display Name (obtained by taking the first character of customer’s name until character before space), Gender (obtained from first character of customer’s gender), and PaymentType for every 
+transaction that is paid by ‘Debit’//
+SELECT SUBSTRING(CustomerName,1,
+CHARINDEX(' ',CustomerName))AS CustomerName,SUBSTRING(CustomerGender,1,1)[CustomerGender],PaymentType
+FROM  MsCustomer s,HeaderSalonServices H
+WHERE s.CustomerId=H.CustomerId
+AND PaymentType ='Debit' ;
+
+//6. Display Initial (obtained from first character of customer’s name and followed by first character of customer’s last name in uppercase format), and Day (obtained from the day when transaction 
+happened ) for every transaction which the day difference with 24th December 2012 is less than 3 days//
+SELECT UPPER(LEFT(CustomerName,1)+SUBSTRING(CustomerName,CHARINDEX(' ',CustomerName)+1,1))[Initial],
+DATENAME(WEEKDAY,TransactionDate)[Day] FROM MsCustomer s,HeaderSalonServices H
+WHERE s.CustomerId=H.CustomerId
+AND DATEDIFF(day,'2012/12/24',TransactionDate)<3;
+
+
+//7. Display TransactionDate, and CustomerName (obtained by taking the character after space until the last character in CustomerName) for every customer whose name contains space and did the
+transaction on Saturday//
+SELECT TransactionDate, RIGHT(CustomerName,CHARINDEX(' ',REVERSE(CustomerName)))[Name]
+FROM MsCustomer s,HeaderSalonServices H
+WHERE s.CustomerId=H.CustomerId
+AND CustomerName LIKE'% %'
+AND DATENAME(WEEKDAY,TransactionDate)='Saturday';
+
+
+//8. Display StaffName, CustomerName, CustomerPhone (obtained from customer’s phone by replacing ‘0’ with ‘+62’), and CustomerAddress for every customer whose name contains vowel 
+character and handled by staff whose name contains at least 3 words//
+SELECT StaffName,CustomerName,REPLACE(CustomerPhone,'0','+62')[CustomerPhone],CustomerAddress
+FROM MsStaff s,HeaderSalonServices H,MsCustomer c
+WHERE H.CustomerId=c.CustomerId
+AND H.StaffId=s.StaffId
+AND UPPER(c.CustomerName)LIKE '%(A,I,U,E,O)%' AND s.StaffName LIKE'% % %';
+
+
+//9. Display StaffName, TreatmentName, and Term of Transaction (obtained from the day difference between transactionDate and 24th December 2012) for every treatment which name is more than 
+20 characters or contains more than one word//
+SELECT StaffName,TreatmentName,DATEDIFF(day,TransactionDate,'2012-12-24')[Term of Transaction]
+FROM MsStaff s,HeaderSalonServices H,MsTreatment T,DetailSalonServices D
+WHERE s.StaffId=H.StaffId 
+AND T.TreatmentId=D.TreatmentId
+AND D.TransactionId=H.TransactionId
+AND ((LEN(t.TreatmentName) >20) OR T.TreatmentName LIKE '% %');
+
+
+//10.  Display TransactionDate, CustomerName, TreatmentName, Discount (obtainedby changing Price data type into int and multiply it by 20%), and PaymentType for every transaction which
+happened on 22th day//
+SELECT TransactionDate,CustomerName,TreatmentName,CAST(Price as int)*0.2[Discount],PaymentType
+FROM HeaderSalonServices H,MsCustomer c,MsTreatment T,DetailSalonServices D
+WHERE c.CustomerId=H.CustomerId
+AND D.TransactionId= H.TransactionId 
+AND T.TreatmentId=D.TreatmentId
+AND DATEPART(day,H.TransactionDate) LIKE'25';
