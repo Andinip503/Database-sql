@@ -1,0 +1,192 @@
+//1. Create a store procedure with named ‘sp1’ to display CustomerId, CustomerName, CustomerGender, and CustomerAddress for every Customer with Id based on user’s input//
+CREATE PROCEDURE sp1 
+@CustomerId VARCHAR (5)
+AS
+BEGIN 
+   SELECT CustomerId,CustomerName,CustomerGender,CustomerAddress FROM MsCustomer
+   WHERE CustomerId=@CustomerId
+END
+EXEC sp1 'CU001'
+
+
+//2. . Create a store procedure with named ‘sp2’ that receives CustomerName as input from user (create procedure, len, like)//
+CREATE PROCEDURE sp2
+@CustomerName VARCHAR(50)
+AS
+BEGIN
+      if LEN(@CustomerName)%2=1
+	    BEGIN
+		 Print'Character Length of Customer Name is an Odd Number'
+        END
+
+    ELSE
+	   BEGIN
+       SELECT c.CustomerId,CustomerName,CustomerGender,h.TransactionId,h.TransactionDate 
+	    FROM  HeaderSalonServices h,MsCustomer c
+        WHERE h.CustomerId=c.CustomerId
+	    AND CustomerName LIKE @CustomerName+'%'
+       END
+ END
+ EXEC sp2 'Elysia Chen'
+ EXEC sp2 'Fran'
+ 
+ 
+ //3. Create a store procedure named ‘sp3’ to update StaffId, StaffName, StaffGender, and StaffPhone on MsStaff table based on StaffId, StaffName, StaffGender, and StaffPhone that was inputted by user. 
+Then display the updated data if the StaffId exists in MsStaff table. Otherwise show message ‘Staff does not exists’//
+ CREATE PROCEDURE sp3
+ @StaffId CHAR(5), @StaffName VARCHAR(50), @StaffGender VARCHAR(10),@StaffPhone VARCHAR(13)
+ AS
+ BEGIN
+      IF EXISTS(SELECT *FROM MsStaff WHERE StaffId=@StaffId)
+	     BEGIN
+		   UPDATE MsStaff SET StaffId=@StaffId,StaffName=@StaffName,StaffGender=@StaffGender,StaffPhone=@StaffPhone
+		   WHERE StaffId=@StaffId
+		 END
+      ELSE
+	     BEGIN
+		    PRINT'Staff does not exists'
+		 END
+END
+
+EXEC sp3 'SF005','Ryan Nixon','Female','08567756123'
+EXEC sp3 'SF011','Bobi','Female','08888888891'
+
+SELECT *FROM MsStaff
+
+//4. Create trigger named ‘trig1’ for MsCustomer table to validate if there are any data which had been 
+updated, it will display before and after updated data on MsCustomer table//
+CREATE TRIGGER trig1
+ON MsCustomer
+FOR UPDATE
+AS 
+Begin 
+     SELECT *FROM deleted
+	 UNION ALL
+	 SELECT *FROM inserted
+END
+
+BEGIN TRANSACTION
+UPDATE MsCustomer SET CustomerName='Franky Quo' WHERE CustomerId ='CU001'
+
+ROLLBACK TRANSACTION
+ 
+//5. Create trigger with name ‘trig2’ for MsCustomer table to validate if there are any new inserted data, then the first data on MsCustomer will be deleted//
+ CREATE TRIGGER trig2
+ ON MsCustomer
+AFTER INSERT 
+AS
+   BEGIN
+     DELETE MsCustomer WHERE CustomerId in(SELECT TOP 1 CustomerId FROM MsCustomer ORDER BY CustomerId ASC)
+   END
+
+BEGIN TRANSACTION
+INSERT INTO MsCustomer VALUES('CU007','Yogie Soesanto','Male','085562133000', 'Pelsakih Street no 52')
+SELECT *FROM MsCustomer
+ROLLBACK TRANSACTION
+
+
+//6. Create trigger with name ‘trig3’ on MsCustomer table to validate if the data on MsCustomer table is deleted, then the deleted data will be insert into Removed table. If Removed table hasn’t been 
+created, then create the Removed table and insert the deleted data to Removed table//
+CREATE TRIGGER trig3
+ON MsCustomer
+AFTER DELETE
+AS 
+BEGIN
+     IF OBJECT_ID('Removed')IS NOT NULL
+	   BEGIN
+	      INSERT INTO Removed
+		  SELECT *FROM deleted
+	   END
+	ELSE
+	BEGIN 
+	     SELECT *INTO Removed FROM deleted
+	END
+END
+
+BEGIN TRANSACTION
+DELETE FROM MsCustomer WHERE CustomerId ='CU002'
+SELECT *FROM MsCustomer
+SELECT *FROM Removed
+ROLLBACK TRANSACTION
+
+//7. Create cursor with name ‘cur1’ to validate whether the length of StaffName is odd or even then show the message about result//
+DECLARE 
+@StaffName VARCHAR(50)
+DECLARE cur1 CURSOR 
+FOR SELECT StaffName FROM MsStaff;
+
+OPEN cur1;
+
+FETCH NEXT FROM cur1 INTO @StaffName;
+WHILE @@FETCH_STATUS=0
+BEGIN 
+    IF LEN(@StaffName)%2=0
+	  BEGIN
+	      PRINT 'The length from StaffName ' + @StaffName + 'is an even Number';
+	  END
+	ELSE
+	  BEGIN
+	      PRINT 'The length from StaffName ' + @StaffName + 'is an odd Number';
+	  END
+FETCH NEXT FROM cur1 INTO @StaffName
+END
+CLOSE cur1;
+DEALLOCATE cur1;
+
+
+//8. Create procedure named ‘sp4’ that receive StaffName from user’s input to display StaffName and StaffPosition for every staff which name contains the word that has been inputted by user//
+CREATE PROCEDURE sp4
+@StaffName VARCHAR(50)
+AS
+DECLARE 
+     @Name VARCHAR(50),
+	 @Position VARCHAR(50);
+DECLARE cur2 CURSOR
+FOR SELECT 
+    StaffName,
+	StaffPosition FROM MsStaff
+WHERE StaffName LIKE '%'+ @StaffName + '%'
+OPEN cur2;
+FETCH NEXT FROM cur2 INTO @Name,@Position
+WHILE @@FETCH_STATUS=0
+BEGIN
+   PRINT 'StaffName : '+ @Name + 'Position : '+ @Position;
+   FETCH NEXT FROM cur2 INTO @Name,@Position
+   END
+CLOSE cur2;
+DEALLOCATE cur2;
+
+EXEC sp4 'a'
+
+//9. Create procedure with name ‘sp5’ that receive CustomerId from user’s input to display CustomerName, and TransactionDate for every customer which Id has been inputted by user and 
+did treatment which ID is an even number//
+CREATE PROCEDURE sp5
+@CustomerId VARCHAR (5)
+AS
+DECLARE 
+      @Name VARCHAR(50),
+	  @Date DATE;
+DECLARE cur3 CURSOR
+FOR SELECT 
+       CustomerName,
+       TransactionDate FROM HeaderSalonServices h,MsCustomer c,DetailSalonServices d,MsTreatment t 
+WHERE H.CustomerId=C.CustomerId
+and h.CustomerId in(@CustomerId)
+and h.TransactionId=d.TransactionId
+and d.TreatmentId=t.TreatmentId
+and CAST(RIGHT(t.TreatmentId,1)AS NUMERIC)%2=0
+OPEN cur3;
+FETCH NEXT FROM cur3 INTO @Name,@Date
+WHILE @@FETCH_STATUS=0
+BEGIN 
+    PRINT 'CustomerName : '+ @Name+ 'Date : '+CAST(@Date AS VARCHAR(50))
+	FETCH NEXT FROM cur3 INTO @Name,@Date
+END
+CLOSE cur3;
+DEALLOCATE cur3;
+
+EXEC sp5 'CU001'
+
+//10. Delete all procedure and trigger that has been made//
+DROP PROCEDURE sp1,sp2,sp3,sp4,sp5
+DROP TRIGGER trig1,trig2,trig3
